@@ -1,0 +1,24 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: kafka-scaledobject
+  namespace: default
+spec:
+  scaleTargetRef:
+    name: kafka-consumer
+  pollingInterval: 5  # Check every 5 seconds
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  triggers:
+    - type: kafka
+      metadata:
+        consumerGroup: my-consumer-group 
+        bootstrapServers: kafka.kafka.svc.cluster.local:9092
+        topic: topic
+        lagThreshold: "10"  # Scale if the lag exceeds 10
+        offsetRestPolicy: latest
+        sasl: plaintext
+        tls: enable
+      authenticationRef:
+        name: keda-kafka-credentials
+

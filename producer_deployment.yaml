@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-producer
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-producer
+  template:
+    metadata:
+      labels:
+        app: kafka-producer
+    spec:
+      containers:
+      - name: kafka-producer
+        image: siddhantgupta415/python-keda
+        command: ["python", "/app/producer.py"]
+        volumeMounts:
+        - name: producer-code
+          mountPath: /app
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+      volumes:
+        - name: producer-code
+          configMap:
+            name: producer-code
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: producer-code
+  namespace: default  # Adjust namespace as needed
+data:
+  producer.py: |
+    from kafka import KafkaProducer
+    import time
+    import random
+    import json
+    import os
+
+    # Kafka producer configuration
+    bootstrap_servers = 'kafka.kafka.svc.cluster.local:9092'
+    topic = 'test'
+
+    # Kafka SASL credentials
+    username = os.getenv('KAFKA_USERNAME', 'user1')  # Replace with your username or set it as an environment variable
+    password = os.getenv('KAFKA_PASSWORD', 'Txuj4nd5Rb')  # Replace with your password or set it as an environment variable
+
+    # Initialize Kafka producer with SASL authentication
+    producer = KafkaProducer(
+        bootstrap_servers=[bootstrap_servers],
+        sasl_mechanism='SCRAM-SHA-256',  # or SCRAM-SHA-512, depending on your Kafka setup
+        security_protocol='SASL_PLAINTEXT',  # or SASL_SSL if you're using SSL
+        sasl_plain_username=username,
+        sasl_plain_password=password,
+        value_serializer=lambda v: json.dumps(v).encode('utf-8')
+    )
+
+    def produce_message():
+        while True:
+            message = {
+                "timestamp": time.time(),
+                "random_value": random.randint(0, 100)
+            }
+            producer.send(topic, message)
+            print(f"Produced message: {message}")
+            time.sleep(10)  # produce a message every 10 seconds
+
+    if __name__ == "__main__":
+        produce_message()
+

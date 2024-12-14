@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-consumer
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-consumer
+  template:
+    metadata:
+      labels:
+        app: kafka-consumer
+    spec:
+      containers:
+      - name: kafka-consumer
+        image: siddhantgupta415/python-keda
+        command: ["python", "/app/consumer.py"]
+        volumeMounts:
+        - name: consumer-code
+          mountPath: /app
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+      volumes:
+        - name: consumer-code
+          configMap:
+            name: consumer-code
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: consumer-code
+  namespace: default  # Adjust namespace if necessary
+data:
+  consumer.py: |
+    from kafka import KafkaConsumer
+    import time
+    import json
+    import os
+
+    # Kafka consumer configuration
+    bootstrap_servers = 'kafka.kafka.svc.cluster.local:9092'
+    topic = 'test'
+
+    # Kafka SASL credentials
+    username = os.getenv('KAFKA_USERNAME', 'user1')  # Replace with your username or set it as an environment variable
+    password = os.getenv('KAFKA_PASSWORD', 'Txuj4nd5Rb')  # Replace with your password or set it as an environment variable
+    consumer_group = os.getenv('KAFKA_CONSUMER_GROUP', 'my-consumer-group') 
+    # Initialize Kafka consumer with SASL authentication
+    consumer = KafkaConsumer(
+        topic,
+        bootstrap_servers=[bootstrap_servers],
+        sasl_mechanism='SCRAM-SHA-256',  # or SCRAM-SHA-512, depending on your Kafka setup
+        security_protocol='SASL_PLAINTEXT',  # or SASL_SSL if you're using SSL
+        sasl_plain_username=username,
+        sasl_plain_password=password,
+        value_deserializer=lambda x: json.loads(x.decode('utf-8'))
+    )
+
+    def consume_message():
+        for message in consumer:
+            print(f"Consumed message: {message.value}")
+            time.sleep(10)  # Simulate processing time
+
+    if __name__ == "__main__":
+        consume_message()
+
