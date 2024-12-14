@@ -52,7 +52,7 @@ This directory contains several files that are used to configure and deploy the 
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-repository/kafka-producer-consumer-keda.git
+   git clone https://github.com/siddhant1223/kafka-producer-consumer-keda.git
    cd kafka-producer-consumer-keda
    ```
 
